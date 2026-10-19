@@ -1,0 +1,16 @@
+{
+  "repo": "thomasgauthier/autojev-27b-GGUF",
+  "revision": "834f2eac1702c7e47e12d63eb729297951362b8a",
+  "files": [
+    {
+      "rfilename": "autojev-Q4_K_M.gguf",
+      "blobId": "4cbbcd5be51b7814efde2ddb4d735ea7fbd117f8",
+      "size": 15834856416,
+      "lfs": {
+        "sha256": "47f0f73a74894883bd2ec62a893a40fe334880af95088a6b019c016c2b7c98b1",
+        "size": 15834856416,
+        "pointerSize": 136
+      }
+    }
+  ]
+}

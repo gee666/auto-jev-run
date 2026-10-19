@@ -1,0 +1,22 @@
+{
+  "port": 8765,
+  "backendPort": 8766,
+  "mode": "cuda",
+  "contextTokens": 12288,
+  "threads": 8,
+  "gpuReserveMiB": 1536,
+  "startupTimeoutSeconds": 900,
+  "requestTimeoutSeconds": 1200,
+  "maxQueuedRequests": 1024,
+  "queueTimeoutSeconds": 0,
+  "maxBodyBytes": 50331648,
+  "visionEnabled": true,
+  "visionProjectorPath": "models/autojev-27b/mmproj-autojev-bf16.gguf",
+  "imageMaxTokens": 256,
+  "idleUnloadSeconds": 300,
+  "modelPath": "models/autojev-27b/autojev-Q4_K_M.gguf",
+  "cacheMode": "none",
+  "prefixCacheEnabled": false,
+  "prefixCacheSeconds": 300,
+  "allowedOrigins": ["*"]
+}

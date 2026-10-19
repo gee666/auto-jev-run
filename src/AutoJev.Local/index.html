@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AutoJev · Local workbench</title>
+<style>
+:root{color-scheme:dark;font:15px/1.5 system-ui,sans-serif;background:#10161c;color:#e6edf3;--muted:#9baebc;--line:#31414d;--green:#92dbb7}
+*{box-sizing:border-box}body{max-width:1440px;margin:auto;padding:32px}h1{font-size:30px;letter-spacing:-1px;margin:0}h2{font-size:19px;margin:0 0 14px}p{margin:8px 0;color:var(--muted)}.eyebrow{font-size:11px;letter-spacing:2px;color:var(--green);font-weight:700;margin-bottom:8px}.header,.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.header{margin-bottom:20px}.status{padding:7px 13px;border:1px solid var(--line);border-radius:30px;white-space:nowrap}.ready{color:var(--green)}.connection{display:flex;align-items:center;flex-wrap:wrap;gap:12px;background:#172129;padding:12px 16px;border-radius:10px;font-size:13px}.connection code{color:#b8d7ee}.examples{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:22px 0}.examples span{color:var(--muted);font-size:13px;margin-right:6px}.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}.panel{background:#172129;border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:18px;min-width:0}.results{position:sticky;top:18px}.muted,.hint{color:var(--muted);font-size:13px}.hint{margin-top:8px}label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}textarea,input,select{width:100%;border:1px solid #425563;border-radius:6px;background:#10191f;color:inherit;padding:10px;font:inherit}textarea{resize:vertical;min-height:65px}textarea.code{font:13px/1.65 ui-monospace,monospace}input:focus,textarea:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px solid var(--green);outline-offset:2px}button{border:1px solid #455a68;background:#21313b;color:#e6edf3;border-radius:6px;padding:8px 12px;font:600 13px system-ui;cursor:pointer}button:hover{background:#2c424e}button:disabled{opacity:.45;cursor:default}.primary{background:var(--green);color:#12251c;border:0;padding:12px 20px;font-size:15px}.primary:hover{background:#b0edcd}.small{font-size:12px;padding:5px 9px}.danger{color:#edb7b7}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.question{border:1px solid var(--line);border-radius:8px;margin:12px 0;background:#121c23}.question summary{cursor:pointer;padding:13px;font-weight:600;overflow-wrap:anywhere}.badge{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;border:1px solid #486454;border-radius:4px;color:var(--green);padding:2px 6px;margin-right:8px}.question-body{padding:0 14px 14px}.option{padding:10px;background:#1b2932;border-radius:7px;margin:10px 0}.option label{margin:5px 0}.level-controls{display:flex;gap:5px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.runline{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:18px 0}.error{color:#ffb1ae;white-space:pre-wrap;font-size:13px}.empty{text-align:center;padding:46px 20px}.empty .symbol{font-size:32px;color:var(--green);margin-bottom:12px}.answer{padding:16px 0;border-bottom:1px solid var(--line)}.answer:last-child{border:0}.answer h3{font-size:15px;margin:0 0 8px;overflow-wrap:anywhere}.verdict{font-size:22px;color:var(--green);margin:12px 0;overflow-wrap:anywhere}.prob{margin:12px 0}.prob .row{font-size:13px;align-items:start}.prob .row span:first-child{overflow-wrap:anywhere}.track{height:6px;background:#33434e;border-radius:9px;overflow:hidden;margin-top:6px}.fill{height:100%;background:var(--green)}.description{font-size:12px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}pre{font:12px/1.6 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:480px;overflow:auto}.request{margin-top:18px}.request summary{cursor:pointer;color:var(--muted);font-size:13px}.toast{color:var(--green);font-size:13px;min-height:20px}footer{font-size:12px;color:var(--muted);margin-top:16px}[hidden]{display:none!important}@media(max-width:850px){body{padding:18px}.grid{grid-template-columns:1fr}.results{position:static}.header{align-items:start}.twocol{grid-template-columns:1fr}}
+.images{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}.image-card{width:145px;border:1px solid var(--line);border-radius:8px;padding:8px;overflow-wrap:anywhere}.image-card img{width:127px;height:95px;object-fit:contain;background:#10191f}.image-card p{font-size:12px}.image-card button{margin-top:5px}
+
+body{max-width:none;margin:0;padding:0}.side-tabs{position:fixed;inset:0 auto 0 0;width:176px;padding:32px 14px;background:#121c23;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:8px;z-index:2}.side-tabs .eyebrow{padding:0 12px;margin-bottom:22px}.side-tabs a{display:block;padding:12px;border-radius:8px;color:var(--muted);text-decoration:none;font-weight:600;border:1px solid transparent}.side-tabs a:hover{background:#21313b;color:#e6edf3}.side-tabs a[aria-current="page"]{background:#20382e;color:var(--green);border-color:#426552}.side-tabs a:focus-visible{outline:2px solid var(--green);outline-offset:2px}.page-content{margin-left:176px;padding:32px;max-width:1440px;min-width:0}@media(max-width:850px){.grid{grid-template-columns:1fr}.results{position:static}}@media(max-width:600px){.side-tabs{width:112px;padding:20px 8px}.side-tabs .eyebrow{padding:0;font-size:9px;letter-spacing:1px}.side-tabs a{font-size:12px;padding:10px 6px}.page-content{margin-left:112px;padding:16px 12px}.header{flex-wrap:wrap}.cards{grid-template-columns:1fr 1fr}.card{padding:10px}.card strong{font-size:22px}}
+</style></head>
+<body><nav class="side-tabs" aria-label="Main navigation"><div class="eyebrow">AUTOJEV / LOCAL</div><a href="/" aria-current="page">Playground</a><a href="/usage">Dashboard</a></nav><div class="page-content">
+<header class="header"><div><h1>Decision workbench</h1><p>One context. Several questions. Probabilities you can inspect.</p></div><span id="status" class="status">Connecting…</span></header>
+<p class="hint">Playground requests use the Dashboard &amp; testing key.</p><div class="connection"><span>Provider <code id="url"></code></span><button id="copyUrl" class="small">Copy URL</button><span class="muted">AutoJev 27B · Q4_K_M · API alias <code>jev-latest</code></span><span id="queue" class="muted"></span><span id="cacheStatus" class="muted"></span></div>
+<div class="examples"><span>Start with an example</span><button data-preset="code">Code behavior</button><button data-preset="fix">Choose a fix</button><button data-preset="risk">Review risk</button><button data-preset="blank">Blank</button></div>
+<main class="grid"><div>
+<section class="panel"><div class="row"><h2>1. Shared context</h2><select id="format" aria-label="Context format" style="width:130px"><option value="text">Plain text</option><option value="json">JSON</option></select></div><label for="state">Text or data the questions refer to</label><textarea id="state" class="code" rows="7" spellcheck="false"></textarea><div class="row hint"><span id="count"></span><span id="limit"></span></div><label for="imageFiles">Images, optional</label><input id="imageFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple aria-describedby="imageHint"><p id="imageHint" class="hint">Up to 4 PNG, JPEG or WebP images, 8 MB and 16 megapixels each. All questions share these images. For small text, crop to the relevant area.</p><div id="images" class="images"></div><p id="imageError" class="error" role="alert"></p></section>
+<section class="panel"><h2>2. Questions &amp; options</h2><p class="hint">Describe what each answer means. Clear, distinct options help the model decide.</p><div id="questions"></div><div class="actions"><button data-add="noul">+ Yes / no</button><button data-add="choice">+ Choice</button><button data-add="score">+ Score</button></div>
+<label for="cacheMode">Cache mode</label><select id="cacheMode"><option value="default">Use server setting</option><option value="none">None, original order</option><option value="options">Options first + cache, experimental</option><option value="context">Context cache, original order</option></select><p class="hint">Options reorders the prompt for fixed questions/options and changing state; check accuracy. Context reuses exact shared state/question text before changing options without reordering. Images bypass both caches. For apps, send X-AutoJev-Cache-Mode: none, options or context. Copy JSON copies only the body.</p>
+<div class="runline"><button id="run" class="primary" disabled>Evaluate</button><button id="cancel" hidden>Cancel</button><span class="muted" id="timing"></span></div><div id="error" class="error" role="alert"></div>
+<details class="request" id="requestDetails"><summary>Generated API request</summary><p class="hint">POST /v1/systemone · This is the request built from your current inputs.</p><p id="requestHeaders" class="hint"></p><button id="copyRequest" class="small">Copy JSON</button><pre id="request"></pre></details></section>
+</div>
+<section class="panel results" aria-live="polite"><div class="row"><h2>3. Results</h2><span id="resultStatus" class="muted">No request yet</span></div><p id="metadata" class="hint"></p><div id="answers"><div class="empty"><div class="symbol">◎</div><strong>Ready for your questions</strong><p>Evaluate the example or add your own context and options.</p></div></div><details id="rawDetails" class="request" hidden><summary>Raw API response</summary><button id="copyResponse" class="small">Copy response</button><pre id="raw"></pre></details><p class="hint">Probabilities are model estimates, not a guarantee of correctness.</p></section>
+</main><div class="toast" id="toast" role="status"></div><footer>Inputs stay in this page and are sent only to the local server. Refreshing resets the form. Stop the server with AutoJev.cmd stop.</footer>
+</div>
+<script>
+const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const labels={noul:'Yes / no',choice:'Choice',score:'Score'};
+let uid=0, questions=[], images=[], imageLoading=false, visionEnabled=false, dirty=false, ready=false, busy=false, controller, lastResponse, timer;
+function question(type,id){return {uid:++uid,id:id||'question_'+uid,type,instructions:'',yes:'',no:'',options:[{name:'option_1',description:''},{name:'option_2',description:''}],levels:['Low','Medium','High'],open:true};}
+function preset(name){
+ if(busy||imageLoading)return;
+ if(dirty&&!confirm('Replace the current inputs with this example?'))return;
+ $('format').value='text';images=[];$('imageError').textContent='';renderImages();
+ if(name==='code'){
+ $('state').value='Consider this Python code after all three statements execute:\n\na = [1, 2]\nb = a\nb.append(3)';
+ const a=question('noul','a_changed');a.instructions='Does a now contain three elements?';a.yes='a contains [1, 2, 3]';a.no='a still contains [1, 2]';
+ const b=question('choice','relationship');b.instructions='What is the relationship between a and b?';b.options=[{name:'shared_object',description:'Both variables refer to the same list.'},{name:'independent_copy',description:'b is a separate copy of the list.'}];b.open=false;questions=[a,b];
+ }else if(name==='fix'){
+ $('state').value='An endpoint builds a SQL query by concatenating an untrusted user_name into its WHERE clause. The database driver supports bound parameters.';
+ const a=question('choice','best_fix');a.instructions='Which change best fixes the SQL injection vulnerability?';a.options=[{name:'bind_parameters',description:'Use a parameterized query and bind user_name as a value.'},{name:'strip_spaces',description:'Remove spaces from user_name before concatenating it.'},{name:'catch_errors',description:'Catch database errors without changing the query construction.'}];questions=[a];
+ }else if(name==='risk'){
+ $('state').value='An authenticated endpoint returns invoices for the customer_id supplied in the request. It does not check whether that customer belongs to the authenticated user.';
+ const a=question('score','risk');a.instructions='Rate the privacy risk of this endpoint.';a.levels=['Low: users can access only their own invoices.','Medium: a weakness exists but does not expose other customers’ invoices.','High: users can access other customers’ private invoices.'];questions=[a];
+ }else{$('state').value='';questions=[question('noul','answer')];}
+ renderQuestions();changed();dirty=false;
+}
+function renderQuestions(){
+ $('questions').innerHTML=questions.map((q,i)=>'<details class="question" data-uid="'+q.uid+'" '+(q.open?'open':'')+'><summary><span class="badge">'+labels[q.type]+'</span><span class="qtitle">'+esc(q.id||'Unnamed question')+'</span></summary><div class="question-body"><div class="twocol"><div><label>Result name<input aria-label="Result name '+(i+1)+'" data-field="id" value="'+esc(q.id)+'"></label></div><div><label>Answer type<select aria-label="Answer type '+(i+1)+'" data-field="type">'+Object.entries(labels).map(([v,t])=>'<option value="'+v+'" '+(v===q.type?'selected':'')+'>'+t+'</option>').join('')+'</select></label></div></div><label>Question instructions<textarea aria-label="Question '+(i+1)+'" data-field="instructions" rows="2">'+esc(q.instructions)+'</textarea></label>'+criteria(q,i)+'<button class="small danger" data-action="remove" '+(questions.length===1?'disabled':'')+'>Remove question</button></div></details>').join('');
+ document.querySelectorAll('.question').forEach(el=>el.addEventListener('toggle',()=>{const q=questions.find(q=>q.uid===Number(el.dataset.uid));if(q)q.open=el.open;}));
+ $('run').textContent='Evaluate '+questions.length+' question'+(questions.length===1?'':'s');
+}
+function criteria(q,i){
+ if(q.type==='noul')return '<p class="hint">Optional criteria clarify what Yes and No mean.</p><div class="twocol"><label>Yes means<input data-field="yes" aria-label="Yes description '+(i+1)+'" value="'+esc(q.yes)+'" placeholder="Optional description"></label><label>No means<input data-field="no" aria-label="No description '+(i+1)+'" value="'+esc(q.no)+'" placeholder="Optional description"></label></div>';
+ if(q.type==='choice')return '<p class="hint">Option names become the API answer. Descriptions explain each option.</p>'+q.options.map((o,j)=>'<div class="option"><div class="row"><strong class="muted">Option '+(j+1)+'</strong><button class="small danger" data-action="remove-option" data-index="'+j+'" '+(q.options.length===1?'disabled':'')+'>Remove option '+(j+1)+'</button></div><label>Name<input data-option="name" data-index="'+j+'" aria-label="Option '+(j+1)+' name for question '+(i+1)+'" value="'+esc(o.name)+'"></label><label>Description<input data-option="description" data-index="'+j+'" aria-label="Option '+(j+1)+' description for question '+(i+1)+'" value="'+esc(o.description)+'" placeholder="What makes this the right answer?"></label></div>').join('')+'<p><button class="small" data-action="add-option" '+(q.options.length>=255?'disabled':'')+'>+ Add option</button></p>';
+ return '<p class="hint">Order levels from lowest to highest. The score is the expected level index, from 0 to '+(q.levels.length-1)+'.</p>'+q.levels.map((l,j)=>'<div class="option"><div class="row"><strong class="muted">Level '+j+'</strong><div class="level-controls"><button class="small" data-action="up" data-index="'+j+'" aria-label="Move level '+j+' up" '+(j===0?'disabled':'')+'>↑</button><button class="small" data-action="down" data-index="'+j+'" aria-label="Move level '+j+' down" '+(j===q.levels.length-1?'disabled':'')+'>↓</button><button class="small danger" data-action="remove-level" data-index="'+j+'" '+(q.levels.length===1?'disabled':'')+'>Remove level '+j+'</button></div></div><label>Description<input data-level="'+j+'" aria-label="Level '+j+' description for question '+(i+1)+'" value="'+esc(l)+'"></label></div>').join('')+'<p><button class="small" data-action="add-level" '+(q.levels.length>=10?'disabled':'')+'>+ Add level</button></p>';
+}
+$('questions').addEventListener('input',e=>{
+ const box=e.target.closest('[data-uid]');if(!box)return;const q=questions.find(q=>q.uid===Number(box.dataset.uid)),el=e.target;
+ if(el.dataset.field){q[el.dataset.field]=el.value;if(el.dataset.field==='id')box.querySelector('.qtitle').textContent=el.value||'Unnamed question';if(el.dataset.field==='type')renderQuestions();}
+ if(el.dataset.option)q.options[Number(el.dataset.index)][el.dataset.option]=el.value;
+ if(el.dataset.level!==undefined)q.levels[Number(el.dataset.level)]=el.value;
+ changed();
+});
+$('questions').addEventListener('click',e=>{
+ const b=e.target.closest('button[data-action]');if(!b)return;const q=questions.find(q=>q.uid===Number(b.closest('[data-uid]').dataset.uid)),j=Number(b.dataset.index),a=b.dataset.action;
+ if(a==='remove')questions=questions.filter(x=>x!==q);
+ if(a==='add-option'){let n=q.options.length+1;while(q.options.some(o=>o.name==='option_'+n))n++;q.options.push({name:'option_'+n,description:''});}
+ if(a==='remove-option')q.options.splice(j,1);
+ if(a==='add-level')q.levels.push('');
+ if(a==='remove-level')q.levels.splice(j,1);
+ if(a==='up')[q.levels[j-1],q.levels[j]]=[q.levels[j],q.levels[j-1]];
+ if(a==='down')[q.levels[j+1],q.levels[j]]=[q.levels[j],q.levels[j+1]];
+ renderQuestions();changed();
+});
+document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const q=question(b.dataset.add);while(questions.some(x=>x.id===q.id))q.id='question_'+(++uid);questions.push(q);renderQuestions();changed();});
+function request(){
+ if(imageLoading)throw Error('Wait for the images to finish loading.');
+ if(images.length&&!visionEnabled)throw Error('Image input is disabled. Enable it in tray Settings.');
+ let state=$('state').value;if(!state.trim()&&!images.length)throw Error('Add shared context or an image first.');
+ if($('format').value==='json'){try{state=JSON.parse(state);}catch{throw Error('The context is not valid JSON.');}if(state===null||!['string','object'].includes(typeof state))throw Error('JSON context must be a string, object, or array.');}
+ const names=new Set(),entries=questions.map((q,i)=>{
+ const id=q.id.trim();if(!id)throw Error('Question '+(i+1)+' needs a result name.');if(names.has(id))throw Error('Result names must be unique: '+id);names.add(id);
+ if(!q.instructions.trim())throw Error('Add instructions for '+id+'.');
+ const value={type:q.type,instructions:q.instructions.trim()};
+ if(q.type==='noul'&&(q.yes.trim()||q.no.trim()))value.criteria={'true':q.yes.trim()||null,'false':q.no.trim()||null};
+ if(q.type==='choice'){const keys=new Set();value.criteria=Object.fromEntries(q.options.map(o=>{const key=o.name.trim();if(!key||keys.has(key))throw Error(id+': option names must be nonempty and unique.');keys.add(key);return [key,o.description.trim()||null];}));}
+ if(q.type==='score'){if(q.levels.some(l=>!l.trim()))throw Error(id+': describe every score level.');value.criteria=q.levels.map(l=>l.trim());}
+ return [id,value];
+ });return {model:'jev-latest',state,questions:Object.fromEntries(entries),...(images.length?{images:images.map(i=>i.uri)}:{})};
+}
+function renderImages(){
+ $('images').innerHTML=images.map((image,i)=>'<div class="image-card"><img src="'+image.uri+'" alt="Preview of image '+(i+1)+'"><p>Image '+(i+1)+' · '+esc(image.name)+'<br>'+image.width+' × '+image.height+'</p><button class="small danger" data-remove-image="'+i+'">Remove image '+(i+1)+'</button></div>').join('');
+}
+function readImage(file){return new Promise((resolve,reject)=>{
+ if(!['image/png','image/jpeg','image/webp'].includes(file.type)){reject(Error('Choose a PNG, JPEG or WebP file.'));return;}
+ if(file.size===0||file.size>8000000){reject(Error(file.name+': images must be nonempty and no larger than 8 MB.'));return;}
+ const reader=new FileReader();reader.onerror=()=>reject(Error('Could not read '+file.name));reader.onload=()=>{
+ const preview=new Image();preview.onerror=()=>reject(Error(file.name+': could not decode this image.'));preview.onload=()=>{
+ if(preview.naturalWidth*preview.naturalHeight>16000000){reject(Error(file.name+': image exceeds 16 megapixels.'));return;}
+ resolve({name:file.name,uri:reader.result,width:preview.naturalWidth,height:preview.naturalHeight});};preview.src=reader.result;};reader.readAsDataURL(file);
+});}
+$('imageFiles').onchange=async()=>{
+ if(busy||imageLoading)return;const files=[...$('imageFiles').files];$('imageFiles').value='';$('imageError').textContent='';
+ if(images.length+files.length>4){$('imageError').textContent='A request can contain at most four images. Remove one before adding more.';return;}
+ imageLoading=true;$('run').disabled=true;
+ try{const loaded=[];for(const file of files)loaded.push(await readImage(file));images.push(...loaded);renderImages();}
+ catch(e){$('imageError').textContent=e.message;}
+ finally{imageLoading=false;changed();refreshStatus();}
+};
+$('images').onclick=e=>{const b=e.target.closest('[data-remove-image]');if(!b||busy||imageLoading)return;images.splice(Number(b.dataset.removeImage),1);renderImages();changed();};
+function cacheHeaders(mode=$('cacheMode').value){return mode==='default'?{}:{'X-AutoJev-Cache-Mode':mode};}
+function changed(){dirty=true;$('requestHeaders').textContent=cacheHeaders()['X-AutoJev-Cache-Mode']?'X-AutoJev-Cache-Mode: '+cacheHeaders()['X-AutoJev-Cache-Mode']:'No cache override header; uses server setting.';$('count').textContent=$('state').value.length.toLocaleString()+' characters';$('error').textContent='';if(lastResponse&&!busy)$('resultStatus').textContent='Previous request';try{const preview=request();if(preview.images)preview.images=preview.images.map((uri,i)=>'[Image '+(i+1)+': '+uri.length.toLocaleString()+' characters. Copy JSON includes the complete data URI.]');$('request').textContent=JSON.stringify(preview,null,2);}catch(e){$('request').textContent=e.message;}}
+$('state').oninput=changed;$('format').onchange=changed;
+document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>preset(b.dataset.preset));
+async function copy(value){try{await navigator.clipboard.writeText(value);$('toast').textContent='Copied.';setTimeout(()=>$('toast').textContent='',2500);}catch{$('toast').textContent='Clipboard unavailable. Select and copy the displayed text.';}}
+$('cacheMode').onchange=changed;
+$('copyUrl').onclick=()=>copy(location.origin);$('copyRequest').onclick=()=>{try{copy(JSON.stringify(request(),null,2));}catch(e){$('error').textContent=e.message;}};$('copyResponse').onclick=()=>copy(JSON.stringify(lastResponse,null,2));
+function bar(name,p,description){p=Number(p);return '<div class="prob"><div class="row"><span>'+esc(name)+'</span><strong>'+esc((p*100).toFixed(1))+'%</strong></div><div class="track"><div class="fill" style="width:'+Math.max(0,Math.min(100,p*100))+'%"></div></div>'+(description?'<div class="description">'+esc(description)+'</div>':'')+'</div>';}
+function results(data,body,seconds,cachedTokens=0,checkpointBytes=0,appliedMode='unknown'){
+ $('metadata').textContent=data.model+' · '+seconds+' s · '+(data.usage?.input_tokens??'?')+' input tokens | applied cache mode: '+appliedMode+' | '+cachedTokens+' cached tokens'+(checkpointBytes?' | '+(checkpointBytes/1048576).toFixed(1)+' MiB cache':'');
+ $('answers').innerHTML=Object.entries(data.answers).map(([id,a])=>{
+ const q=body.questions[id];let content='';
+ if(a.type==='noul')content='<div class="verdict">'+(a.noul>=.5?'Yes':'No')+'</div>'+bar('Yes',a.noul,q.criteria?.true)+bar('No',1-a.noul,q.criteria?.false);
+ if(a.type==='choice')content='<div class="verdict">'+esc(a.choice)+'</div>'+Object.entries(a.probabilities).sort((x,y)=>y[1]-x[1]).map(([k,p])=>bar(k,p,q.criteria[k])).join('');
+ if(a.type==='score')content='<div class="verdict">'+Number(a.score).toFixed(2)+' / '+(q.criteria.length-1)+'</div>'+Object.entries(a.probabilities).sort((x,y)=>Number(x[0])-Number(y[0])).map(([k,p])=>bar('Level '+k,p,q.criteria[Number(k)])).join('');
+ return '<article class="answer"><h3><span class="badge">'+labels[a.type]+'</span>'+esc(id)+'</h3><p class="hint">'+esc(q.instructions)+'</p>'+content+'</article>';
+ }).join('');
+ $('raw').textContent=JSON.stringify(data,null,2);$('rawDetails').hidden=false;$('resultStatus').textContent='Complete';
+}
+$('run').onclick=async()=>{
+ let body;const headers=cacheHeaders();try{body=request();}catch(e){$('error').textContent=e.message;return;}
+ busy=true;$('run').disabled=true;$('cancel').hidden=false;$('error').textContent='';$('resultStatus').textContent='Evaluating…';controller=new AbortController();
+ const start=performance.now();timer=setInterval(()=>$('timing').textContent=((performance.now()-start)/1000).toFixed(1)+' s',100);
+ try{const dashboardResponse=await fetch('/local/dashboard-key');if(!dashboardResponse.ok)throw Error('Cannot obtain the dashboard key.');const dashboard=await dashboardResponse.json();const response=await fetch('/v1/systemone',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+dashboard.key,...headers},body:JSON.stringify(body),signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(data.error?.message||JSON.stringify(data));lastResponse=data;results(data,body,((performance.now()-start)/1000).toFixed(2),Number(response.headers.get("X-AutoJev-Cached-Tokens")||0),Number(response.headers.get("X-AutoJev-Checkpoint-Bytes")||0),response.headers.get("X-AutoJev-Cache-Mode")||"unknown");}
+ catch(e){$('error').textContent=e.name==='AbortError'?'Request canceled.':e.message;$('resultStatus').textContent=lastResponse?'Previous result':'No result';}
+ finally{clearInterval(timer);busy=false;$('cancel').hidden=true;refreshStatus();}
+};
+$('cancel').onclick=()=>controller?.abort();
+async function refreshStatus(){try{const r=await fetch('/local/status'),s=await r.json();ready=['ready','unloaded','loading'].includes(s.status);visionEnabled=s.visionEnabled===true;if($('cacheStatus'))$('cacheStatus').textContent='Server default: '+(s.cacheMode??(s.prefixCacheEnabled?'options':'none'))+' | '+s.prefixCacheSeconds+' s idle lifetime';$('imageFiles').disabled=!visionEnabled||busy||imageLoading;$('imageHint').textContent=visionEnabled?'Up to 4 PNG, JPEG or WebP images, 8 MB and 16 megapixels each. All questions share these images. For small text, crop to the relevant area.':'Image input is disabled. Enable it in tray Settings.';$('status').textContent=s.status==='unloaded'?'Sleeping · loads on request':s.status==='loading'?'Loading model…':s.status==='ready'?'Ready · '+s.mode.toUpperCase():s.status;$('status').classList.toggle('ready',ready);$('queue').textContent=(s.activeRequests??0)+' active · '+(s.waitingRequests??0)+' waiting';if(s.contextTokens)$('limit').textContent=s.contextTokens.toLocaleString()+' token context limit';}catch{ready=false;$('status').textContent='Server unavailable';$('queue').textContent='';}$('run').disabled=!ready||busy||imageLoading;}
+$('url').textContent=location.origin;preset('code');refreshStatus();setInterval(refreshStatus,3000);
+</script></body></html>

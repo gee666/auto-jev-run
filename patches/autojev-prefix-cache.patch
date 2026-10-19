@@ -1,0 +1,150 @@
+diff --git a/tools/autojev/autojev-common.cpp b/tools/autojev/autojev-common.cpp
+index aea55e0..003dd6f 100644
+--- a/tools/autojev/autojev-common.cpp
++++ b/tools/autojev/autojev-common.cpp
+@@ -238,0 +239,13 @@ std::string build_user_prompt(const json & state, const json & question,
++std::string describe_state(const json & state) { return describe(state); }
++
++std::string build_options_prefix(const json & question, const std::vector<std::string> & codes, const option_set & options) {
++    const json instructions = question.value("instructions", json());
++    std::string result = "Question:\n" + describe(is_falsey(instructions) ? json("Choose the best matching option.") : instructions);
++    result += "\n\nOptions:\n";
++    for (size_t i = 0; i < options.keys.size(); ++i) {
++        if (i != 0) result += '\n';
++        result += codes[i] + ": " + describe(options.descriptions[i]);
++    }
++    return result + "\n\nState:\n";
++}
++
+diff --git a/tools/autojev/autojev-common.h b/tools/autojev/autojev-common.h
+index 36a7e01..5c3acb6 100644
+--- a/tools/autojev/autojev-common.h
++++ b/tools/autojev/autojev-common.h
+@@ -35,0 +36,2 @@ std::string build_user_prompt(const json & state, const json & question,
++std::string describe_state(const json & state);
++std::string build_options_prefix(const json & question, const std::vector<std::string> & codes, const option_set & options);
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index a9a90ce..86ff354 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -20,0 +21,2 @@
++#include <cstdlib>
++#include <cctype>
+@@ -44,0 +47,10 @@ constexpr int HTTP_POLLING_SECONDS = 1;
++static bool autojev_env_enabled(const char * name) {
++    const char * value = std::getenv(name);
++    return value && std::string_view(value) == "1";
++}
++
++static int autojev_cache_ttl() {
++    const char * value = std::getenv("AUTOJEV_PREFIX_CACHE_SECONDS");
++    return value ? std::clamp(std::atoi(value), 1, 3600) : 300;
++}
++
+@@ -284,0 +297 @@ struct server_slot {
++    int32_t autojev_cache_write_tokens = 0;
+@@ -391,0 +405 @@ struct server_slot {
++        autojev_cache_write_tokens = 0;
+@@ -2236,0 +2251,3 @@ private:
++        res->cached_tokens = slot.stats.n_prompt_cached;
++        res->cache_write_tokens = slot.autojev_cache_write_tokens;
++        for (const auto & checkpoint : slot.prompt.checkpoints) res->checkpoint_bytes += checkpoint.size();
+@@ -2832,0 +2850,9 @@ private:
++        if (params_base.embedding && params_base.pooling_type == LLAMA_POOLING_TYPE_RANK) {
++            for (auto & slot : slots) {
++                if (!slot.is_processing() && !slot.prompt.checkpoints.empty() && slot.t_last_used >= 0 &&
++                        ggml_time_us() - slot.t_last_used > int64_t(autojev_cache_ttl()) * 1000000) {
++                    slot.prompt_clear();
++                    SLT_INF(slot, "%s", "expired options prefix cache\n");
++                }
++            }
++        }
+@@ -3258,0 +3285,7 @@ private:
++                                if (slot.task->autojev_prefix_tokens > 0) {
++                                    n_past = std::min(n_past, slot.task->autojev_prefix_tokens);
++                                    if (slot.t_last_used >= 0 && ggml_time_us() - slot.t_last_used > int64_t(autojev_cache_ttl()) * 1000000) {
++                                        slot.prompt.checkpoints.clear();
++                                        n_past = 0;
++                                    }
++                                }
+@@ -3561,0 +3595,2 @@ private:
++                    const int autojev_boundary = slot.task->autojev_prefix_tokens;
++
+@@ -3586,0 +3622 @@ private:
++                        if (autojev_boundary > 0 && slot.prompt.n_tokens() == autojev_boundary) break;
+@@ -3671,0 +3708,5 @@ private:
++                    if (autojev_boundary > 0) {
++                        do_checkpoint = n_tokens_start == autojev_boundary && pos_min >= 0 && !has_mtmd;
++                        if (do_checkpoint && !slot.prompt.checkpoints.empty() && slot.prompt.checkpoints.back().n_tokens == autojev_boundary) do_checkpoint = false;
++                        if (do_checkpoint) slot.prompt.checkpoints.clear();
++                    }
+@@ -3673,0 +3715,6 @@ private:
++                        if (autojev_boundary > 0) slot.autojev_cache_write_tokens += autojev_boundary;
++                        if (autojev_boundary > 0 && slot.prompt.checkpoints.back().size() > 256ULL * 1024 * 1024) {
++                            slot.prompt.checkpoints.clear();
++                            slot.autojev_cache_write_tokens = 0;
++                            SLT_WRN(slot, "%s", "options prefix checkpoint exceeded 256 MiB; skipped\n");
++                        }
+@@ -5267 +5314 @@ void server_routes::init_routes() {
+-        auto reject = [&](const std::string & message, error_type type = ERROR_TYPE_INVALID_REQUEST) {
++        auto reject = [&](const std::string & message, error_type type = ::ERROR_TYPE_INVALID_REQUEST) {
+@@ -5313,0 +5361,11 @@ void server_routes::init_routes() {
++        bool options_first_requested = autojev_env_enabled("AUTOJEV_OPTIONS_FIRST");
++        bool prefix_cache_requested = autojev_env_enabled("AUTOJEV_PREFIX_CACHE");
++        for (const auto & header : req.headers) {
++            std::string name = header.first;
++            std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return char(std::tolower(c)); });
++            if (name == "x-autojev-prefix-cache") {
++                if (header.second != "1" && header.second != "0") return reject("Invalid prefix cache override");
++                options_first_requested = prefix_cache_requested = header.second == "1";
++            }
++        }
++
+@@ -5455 +5513,3 @@ void server_routes::init_routes() {
+-                const std::string user_prompt = autojev::build_user_prompt(
++                const bool options_first = files.empty() && options_first_requested;
++                const std::string prefix = options_first ? autojev::build_options_prefix(it.value(), codes, option_sets[question_index]) : "";
++                std::string user_prompt = autojev::build_user_prompt(
+@@ -5456,0 +5517,3 @@ void server_routes::init_routes() {
++                if (options_first) {
++                    user_prompt = prefix + autojev::describe_state(body["state"]) + "\n\nReturn only the letter code of the best option.";
++                }
+@@ -5474,0 +5538,9 @@ void server_routes::init_routes() {
++                    task.params.cache_prompt = options_first && prefix_cache_requested;
++                    if (task.params.cache_prompt) {
++                        const size_t start = rendered.prompt.rfind(user_prompt);
++                        if (start == std::string::npos) throw std::runtime_error("Cannot locate AutoJev user prompt");
++                        const auto prefix_tokens = tokenize_mixed(ctx_server.vocab, rendered.prompt.substr(0, start + prefix.size()), true, true);
++                        size_t count = 0;
++                        while (count < prefix_tokens.size() && count < task.tokens.size() && prefix_tokens[count] == task.tokens[count]) ++count;
++                        task.autojev_prefix_tokens = int32_t(count);
++                    }
+@@ -5509 +5581 @@ void server_routes::init_routes() {
+-        size_t input_tokens = 0;
++        size_t input_tokens = 0, cached_tokens = 0, cache_write_tokens = 0, checkpoint_bytes = 0;
+@@ -5518,0 +5591,3 @@ void server_routes::init_routes() {
++            cached_tokens += rerank->cached_tokens;
++            cache_write_tokens += rerank->cache_write_tokens;
++            checkpoint_bytes = std::max(checkpoint_bytes, rerank->checkpoint_bytes);
+@@ -5527,0 +5603,3 @@ void server_routes::init_routes() {
++        res->headers["X-AutoJev-Cached-Tokens"] = std::to_string(cached_tokens);
++        res->headers["X-AutoJev-Cache-Write-Tokens"] = std::to_string(cache_write_tokens);
++        res->headers["X-AutoJev-Checkpoint-Bytes"] = std::to_string(checkpoint_bytes);
+diff --git a/tools/server/server-queue.cpp b/tools/server/server-queue.cpp
+index 78169e9..f05dd64 100644
+--- a/tools/server/server-queue.cpp
++++ b/tools/server/server-queue.cpp
+@@ -360 +360,2 @@ void server_queue::start_loop(int64_t idle_sleep_ms) {
+-                // otherwise, loop again to check sleeping condition
++                // Give the inference thread an idle maintenance tick.
++                break;
+diff --git a/tools/server/server-task.h b/tools/server/server-task.h
+index b80f4ad..dc8ed4c 100644
+--- a/tools/server/server-task.h
++++ b/tools/server/server-task.h
+@@ -154,0 +155 @@ struct server_task {
++    int32_t autojev_prefix_tokens = 0;
+@@ -470,0 +472,3 @@ struct server_task_result_rerank : server_task_result {
++    int32_t cached_tokens = 0;
++    int32_t cache_write_tokens = 0;
++    size_t checkpoint_bytes = 0;

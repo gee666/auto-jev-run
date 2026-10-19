@@ -1,0 +1,12 @@
+{
+  "model": "jev-latest",
+  "state": "A customer reports two charges for one invoice. Login works normally.",
+  "questions": {
+    "billing": {"type": "noul", "instructions": "Is this about billing?"},
+    "team": {
+      "type": "choice",
+      "instructions": "Which team should handle this?",
+      "criteria": {"billing": "Charges and invoices", "technical": "Login and software bugs"}
+    }
+  }
+}
