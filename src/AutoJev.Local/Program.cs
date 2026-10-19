@@ -219,7 +219,7 @@ internal static class Program
     {
         using var instance = new FileStream(Path.Combine(root, "state", "launcher.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         var logPath = Path.Combine(root, "logs", "launcher.log");
-        using var writer = new StreamWriter(logPath, append: true) { AutoFlush = true };
+        using var writer = new RollingLogWriter(logPath);
         Console.SetOut(TextWriter.Synchronized(writer));
         Console.SetError(Console.Out);
         var control = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -401,7 +401,7 @@ internal sealed class Backend(string root, Settings cfg) : IDisposable
             lock (sync)
             {
                 stop.ThrowIfCancellationRequested();
-                log = TextWriter.Synchronized(new StreamWriter(Path.Combine(root, "logs", "backend.log"), append: true) { AutoFlush = true });
+                log = TextWriter.Synchronized(new RollingLogWriter(Path.Combine(root, "logs", "backend.log")));
                 var output = log;
 #if WINDOWS
                 job = new WindowsJob();

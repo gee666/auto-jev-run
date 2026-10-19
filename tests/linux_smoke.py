@@ -39,6 +39,8 @@ def main():
         assert code == 200, (mode, code, data[:500])
         result = json.loads(data)
         assert 'answers' in result and result['usage']['input_tokens'] > 0, result
+        assert result['answers']['billing']['noul'] > 0.5, result
+        assert result['answers']['team']['choice'] == 'billing', result
         print(mode, round(time.monotonic() - started, 2), result, flush=True)
     image_request = {'model': 'jev-latest', 'state': 'Inspect the attached image.',
         'images': ['data:image/png;base64,' + base64.b64encode((ROOT/'tests/vision-fixtures/red.png').read_bytes()).decode()],
@@ -46,7 +48,9 @@ def main():
             'criteria': {'red': 'Red', 'blue': 'Blue'}}}}
     code, data, _ = http('/v1/systemone', image_request, key)
     assert code == 200, (code, data[:500])
-    print('image', json.loads(data), flush=True)
+    image_result = json.loads(data)
+    assert image_result['answers']['color']['choice'] == 'red', image_result
+    print('image', image_result, flush=True)
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         results = list(pool.map(lambda _: http('/v1/systemone', request, key)[0], range(3)))
     assert results == [200] * 3, results

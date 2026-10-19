@@ -29,26 +29,13 @@ LimitCORE=0
 [Install]
 WantedBy=default.target
 EOF
-cat > "$ROOT/config/logrotate-linux.conf" <<EOF
-$ROOT/logs/*.log {
-    daily
-    maxsize 20M
-    rotate 7
-    compress
-    missingok
-    notifempty
-    copytruncate
-    su $USER $(id -gn)
-}
-EOF
 cat > "$HOME/.config/systemd/user/autojev-maintenance.service" <<EOF
 [Unit]
-Description=AutoJev private database backup and log rotation
+Description=AutoJev private database backup
 [Service]
 Type=oneshot
 WorkingDirectory=$ROOT
 ExecStart=/usr/bin/python3 $ROOT/scripts/backup-linux.py
-ExecStart=/usr/sbin/logrotate --state $ROOT/state/logrotate.state $ROOT/config/logrotate-linux.conf
 UMask=0077
 NoNewPrivileges=true
 EOF
