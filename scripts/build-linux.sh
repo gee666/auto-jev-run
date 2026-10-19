@@ -8,8 +8,7 @@ mkdir -p repos .build app runtime/linux-cuda
 if [[ ! -d repos/jev.cpp/.git ]]; then
   git clone https://github.com/thomasgauthier/jev.cpp.git repos/jev.cpp
   git -C repos/jev.cpp checkout aa885f0a86efe36079d70b522f927cd2fc38683b
-  git -C repos/jev.cpp apply "$ROOT/patches/autojev-prefix-cache.patch"
-  git -C repos/jev.cpp apply "$ROOT/patches/autojev-context-cache.patch"
+  git -C repos/jev.cpp apply "$ROOT/patches/autojev-backend.patch"
 fi
 # GB10 uses SM 12.1. Override for other GPUs.
 cmake -S repos/jev.cpp -B .build/jev-cuda \

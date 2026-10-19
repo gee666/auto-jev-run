@@ -11,7 +11,7 @@ bash scripts/build-linux.sh
 bash scripts/install-linux-service.sh
 ```
 
-The build pins jev.cpp to `aa885f0a86efe36079d70b522f927cd2fc38683b` and applies both cache patches. Python 3, ffmpeg and ffprobe are needed for image conversion. They must be on the service PATH or installed under `runtime/media/`.
+The build pins jev.cpp to `aa885f0a86efe36079d70b522f927cd2fc38683b` and applies `patches/autojev-backend.patch`, exported from the working Windows backend. The older incremental patches are retained for reference. Python 3, ffmpeg and ffprobe are needed for image conversion. They must be on the service PATH or installed under `runtime/media/`.
 
 Copy weights separately into `models/autojev-27b/`. Copy the SQLite database using SQLite's backup API, not a raw copy while its source is running. Keep private data out of Git. App keys are stored as hashes in the database. Existing client key strings remain valid; the internal dashboard key and process control tokens regenerate on startup.
 

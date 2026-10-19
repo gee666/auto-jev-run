@@ -1,0 +1,527 @@
+diff --git a/tools/autojev/autojev-common.cpp b/tools/autojev/autojev-common.cpp
+index aea55e0..ecb7135 100644
+--- a/tools/autojev/autojev-common.cpp
++++ b/tools/autojev/autojev-common.cpp
+@@ -236,6 +236,29 @@ std::string build_user_prompt(const json & state, const json & question,
+     return result;
+ }
+ 
++std::string describe_state(const json & state) { return describe(state); }
++
++std::string build_state_prefix(const json & state) {
++    return "State:\n" + describe(state) + "\n\nQuestion:\n";
++}
++
++std::string build_context_prefix(const json & state, const json & question) {
++    const json instructions = question.value("instructions", json());
++    return build_state_prefix(state) + describe(is_falsey(instructions)
++        ? json("Choose the best matching option.") : instructions) + "\n\nOptions:\n";
++}
++
++std::string build_options_prefix(const json & question, const std::vector<std::string> & codes, const option_set & options) {
++    const json instructions = question.value("instructions", json());
++    std::string result = "Question:\n" + describe(is_falsey(instructions) ? json("Choose the best matching option.") : instructions);
++    result += "\n\nOptions:\n";
++    for (size_t i = 0; i < options.keys.size(); ++i) {
++        if (i != 0) result += '\n';
++        result += codes[i] + ": " + describe(options.descriptions[i]);
++    }
++    return result + "\n\nState:\n";
++}
++
+ std::vector<unsigned char> decode_base64(std::string_view input) {
+     static const std::array<int8_t, 256> table = [] {
+         std::array<int8_t, 256> values{};
+diff --git a/tools/autojev/autojev-common.h b/tools/autojev/autojev-common.h
+index 36a7e01..e2a77c3 100644
+--- a/tools/autojev/autojev-common.h
++++ b/tools/autojev/autojev-common.h
+@@ -33,6 +33,10 @@ std::string build_user_prompt(const json & state, const json & question,
+                               const std::vector<std::string> & codes,
+                               const option_set & options, size_t n_images,
+                               std::string_view image_marker);
++std::string describe_state(const json & state);
++std::string build_state_prefix(const json & state);
++std::string build_context_prefix(const json & state, const json & question);
++std::string build_options_prefix(const json & question, const std::vector<std::string> & codes, const option_set & options);
+ std::vector<unsigned char> decode_base64(std::string_view input);
+ std::vector<double> probabilities(const std::vector<float> & logits, size_t count, double temperature);
+ json make_answer(const json & question, const option_set & options, const std::vector<double> & probs);
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index a9a90ce..7e6207c 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -18,6 +18,8 @@
+ #include "mtmd.h"
+ #include "mtmd-helper.h"
+ #include <cstdint>
++#include <cstdlib>
++#include <cctype>
+ #include <initializer_list>
+ #include <string_view>
+ 
+@@ -42,6 +44,16 @@
+ 
+ constexpr int HTTP_POLLING_SECONDS = 1;
+ 
++static bool autojev_env_enabled(const char * name) {
++    const char * value = std::getenv(name);
++    return value && std::string_view(value) == "1";
++}
++
++static int autojev_cache_ttl() {
++    const char * value = std::getenv("AUTOJEV_PREFIX_CACHE_SECONDS");
++    return value ? std::clamp(std::atoi(value), 1, 3600) : 300;
++}
++
+ static common_speculative_output_limits server_output_limits(const common_params & params) {
+     if (params.embedding ||
+             (params.pooling_type != LLAMA_POOLING_TYPE_UNSPECIFIED && params.pooling_type != LLAMA_POOLING_TYPE_NONE)) {
+@@ -282,6 +294,7 @@ struct server_slot {
+ 
+     // TODO: move members that belong to the task (such as `generated_text`, `has_new_line`) to task_results_state
+     //       see https://github.com/ggml-org/llama.cpp/pull/18283#issuecomment-3710175837
++    int32_t autojev_cache_write_tokens = 0;
+     std::unique_ptr<const server_task> task;
+     std::unique_ptr<const server_task> task_prev; // used for debugging
+ 
+@@ -319,7 +332,8 @@ struct server_slot {
+     server_prompt prompt;
+ 
+     bool prompt_save(server_prompt_cache & prompt_cache) const {
+-        if (prompt.tokens.size() == 0) {
++        // AutoJev prefixes stay slot-local so the secondary cache cannot extend their TTL.
++        if (!prompt.autojev_cache_mode.empty() || prompt.tokens.size() == 0) {
+             return false;
+         }
+ 
+@@ -389,6 +403,7 @@ struct server_slot {
+     int32_t n_gen_last = 0;
+ 
+     void reset() {
++        autojev_cache_write_tokens = 0;
+         SLT_DBG(*this, "%s", "\n");
+ 
+         spec_is_replay = false;
+@@ -2234,6 +2249,9 @@ private:
+         res->id       = slot.task->id;
+         res->index    = slot.task->index;
+         res->n_tokens = slot.task->n_tokens();
++        res->cached_tokens = slot.stats.n_prompt_cached;
++        res->cache_write_tokens = slot.autojev_cache_write_tokens;
++        for (const auto & checkpoint : slot.prompt.checkpoints) res->checkpoint_bytes += checkpoint.size();
+ 
+         for (int i = 0; i < batch.n_tokens; ++i) {
+             if (!batch.logits[i] || batch.seq_id[i][0] != slot.id) {
+@@ -2346,6 +2364,7 @@ private:
+ 
+     // n_tokens_cur: the number of tokens added to the batch for the current slot
+     void create_checkpoint(server_slot & slot, const int64_t n_tokens_cur, llama_pos pos_min, llama_pos pos_max) {
++        if (params_base.n_ctx_checkpoints <= 0) return;
+         const int id_task = slot.task->id;
+ 
+         // evict checkpoints within min-step of a previous checkpoint, unless they were
+@@ -2390,8 +2409,7 @@ private:
+             }
+         }
+ 
+-        auto & cur = slot.prompt.checkpoints.emplace_back();
+-
++        common_prompt_checkpoint cur;
+         cur.id_task = id_task;
+ 
+         // [TAG_CHECKPOINTS_FIX_POS_MIN]
+@@ -2403,11 +2421,16 @@ private:
+         cur.update_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+         // stash the draft's speculative state with the checkpoint
+         common_speculative_get_state(spec.get(), slot.id, cur.data_spec);
++        if (!slot.task->autojev_cache_mode.empty() && (cur.data_tgt.empty() || (ctx_dft && cur.data_dft.empty()))) {
++            throw std::runtime_error("Failed to serialize AutoJev prefix checkpoint");
++        }
+ 
++        slot.prompt.checkpoints.push_back(std::move(cur));
++        const auto & stored = slot.prompt.checkpoints.back();
+         SLT_TRC(slot,
+                 "created context checkpoint %d of %d (pos_min = %d, pos_max = %d, n_tokens = %" PRId64 ", size = %.3f MiB)\n",
+-                (int) slot.prompt.checkpoints.size(), params_base.n_ctx_checkpoints, cur.pos_min,
+-                cur.pos_max, cur.n_tokens, (float) cur.size() / 1024 / 1024);
++                (int) slot.prompt.checkpoints.size(), params_base.n_ctx_checkpoints, stored.pos_min,
++                stored.pos_max, stored.n_tokens, (float) stored.size() / 1024 / 1024);
+     }
+ 
+     // returns false to decline the task, it is offered again after the decode is done
+@@ -2830,6 +2853,15 @@ private:
+ #endif
+ 
+     void update_slots() {
++        if (params_base.embedding && params_base.pooling_type == LLAMA_POOLING_TYPE_RANK) {
++            for (auto & slot : slots) {
++                if (!slot.is_processing() && !slot.prompt.autojev_cache_mode.empty() && slot.t_last_used >= 0 &&
++                        ggml_time_us() - slot.t_last_used > int64_t(autojev_cache_ttl()) * 1000000) {
++                    slot.prompt_clear();
++                    SLT_INF(slot, "%s", "expired AutoJev prefix cache\n");
++                }
++            }
++        }
+ #ifdef DEBUG_TIMINGS
+         static int64_t t_prev = 0;
+         int64_t t_start = ggml_time_us();
+@@ -3199,6 +3231,16 @@ private:
+                             }
+                         }*/
+ 
++                        // Keep mode transitions and expired live state out of prefix reuse.
++                        if (!slot.task->autojev_cache_mode.empty() || !slot.prompt.autojev_cache_mode.empty()) {
++                            if (slot.task->autojev_cache_mode != slot.prompt.autojev_cache_mode ||
++                                    !slot.task->params.cache_prompt ||
++                                    (slot.t_last_used >= 0 && ggml_time_us() - slot.t_last_used > int64_t(autojev_cache_ttl()) * 1000000)) {
++                                slot.prompt_clear();
++                            }
++                            slot.prompt.autojev_cache_mode = slot.task->autojev_cache_mode;
++                        }
++
+                         // keep track how many tokens we can reuse from the previous state
+                         int n_past = 0;
+ 
+@@ -3256,6 +3298,13 @@ private:
+                             if (slot.task->params.cache_prompt) {
+                                 // reuse any previously computed tokens that are common with the new prompt
+                                 n_past = slot.prompt.tokens.get_common_prefix(input_tokens);
++                                if (slot.task->autojev_prefix_tokens > 0) {
++                                    n_past = std::min(n_past, slot.task->autojev_prefix_tokens);
++                                    if (slot.t_last_used >= 0 && ggml_time_us() - slot.t_last_used > int64_t(autojev_cache_ttl()) * 1000000) {
++                                        slot.prompt.checkpoints.clear();
++                                        n_past = 0;
++                                    }
++                                }
+ 
+                                 // if there is an alora invoked, don't cache after the invocation start
+                                 if (slot.alora_invocation_start > 0) {
+@@ -3263,7 +3312,7 @@ private:
+                                     n_past = std::min(n_past, slot.alora_invocation_start - 1);
+                                 }
+ 
+-                                const auto n_cache_reuse = slot.task->params.n_cache_reuse;
++                                const auto n_cache_reuse = slot.task->autojev_cache_mode.empty() ? slot.task->params.n_cache_reuse : 0;
+ 
+                                 const bool can_cache_reuse =
+                                     llama_memory_can_shift(llama_get_memory(ctx_tgt)) &&
+@@ -3394,7 +3443,8 @@ private:
+                                             // guarantee that a checkpoint will result in at least one token being processed [TAG_PROMPT_LOGITS]
+                                             SLT_TRC(slot, "checking checkpoint with [%d, %d] against %d...\n", cur.pos_min, cur.pos_max, pos_min_thold);
+                                             // workaround for [TAG_CHECKPOINTS_FIX_POS_MIN]
+-                                            if (cur.pos_max > pos_next) {
++                                            if (cur.pos_max > pos_next ||
++                                                    (!slot.task->autojev_cache_mode.empty() && cur.n_tokens > n_past)) {
+                                                 return false;
+                                             }
+                                             return cur.pos_min < pos_min_thold || cur.pos_min == 0;
+@@ -3410,8 +3460,14 @@ private:
+                                         // restore the draft's speculative state
+                                         common_speculative_set_state(spec.get(), slot.id, it->data_spec);
+ 
+-                                        pos_next = std::min(pos_next, std::max(it->pos_min + 1, it->pos_max));
+-                                        n_past   = std::min(slot.prompt.tokens.size_up_to_pos(pos_next), (size_t) it->n_tokens);
++                                        if (slot.task->autojev_cache_mode == "context") {
++                                            // The recurrent snapshot already includes the entire checkpoint prefix.
++                                            n_past = int(it->n_tokens);
++                                            pos_next = slot.prompt.tokens.pos_next(n_past);
++                                        } else {
++                                            pos_next = std::min(pos_next, std::max(it->pos_min + 1, it->pos_max));
++                                            n_past   = std::min(slot.prompt.tokens.size_up_to_pos(pos_next), (size_t) it->n_tokens);
++                                        }
+                                         SLT_TRC(slot, "restored context checkpoint (pos_min = %d, pos_max = %d, n_tokens = %" PRId64 ", n_past = %d, size = %.3f MiB)\n", it->pos_min, it->pos_max, it->n_tokens, n_past, (float) it->size() / 1024 / 1024);
+                                     }
+ 
+@@ -3428,7 +3484,8 @@ private:
+                                 // erase any checkpoints with pos_max > pos_next
+                                 for (auto it = slot.prompt.checkpoints.begin(); it != slot.prompt.checkpoints.end();) {
+                                     const auto & cur = *it;
+-                                    if (cur.pos_max > pos_next) {
++                                    if (cur.pos_max > pos_next ||
++                                            (!slot.task->autojev_cache_mode.empty() && cur.n_tokens > n_past)) {
+                                         SLT_TRC(slot, "erased invalidated context checkpoint (pos_min = %d, pos_max = %d, n_tokens = %" PRId64 ", n_swa = %d, pos_next = %d, size = %.3f MiB)\n", cur.pos_min, cur.pos_max, cur.n_tokens, n_swa, pos_next, (float) cur.size() / 1024 / 1024);
+                                         it = slot.prompt.checkpoints.erase(it);
+                                     } else {
+@@ -3559,6 +3616,13 @@ private:
+                     const auto & spans = slot.task->params.message_spans;
+                     const auto last_user_pos = spans.last_user_message_pos();
+ 
++                    const int autojev_boundary = slot.task->autojev_prefix_tokens;
++                    const int autojev_state_boundary = slot.task->autojev_state_tokens;
++                    const auto is_autojev_boundary = [&](int64_t count) {
++                        return (autojev_boundary > 0 && count == autojev_boundary) ||
++                               (autojev_state_boundary > 0 && count == autojev_state_boundary);
++                    };
++
+                     // add prompt tokens for processing in the current batch
+                     while (slot.prompt.n_tokens() < slot.task->n_tokens() && batch.size() < n_batch) {
+                         // get next token to process
+@@ -3584,6 +3648,7 @@ private:
+                             /* output    = */ slot.need_embd(),
+                             /* is_prompt = */ true);
+                         slot.prompt.tokens.push_back(cur_tok);
++                        if (is_autojev_boundary(slot.prompt.n_tokens())) break;
+ 
+                         // break at the last user message, or at user messages at least min step past the last checkpoint
+                         if (do_checkpoint && spans.is_user_start(slot.prompt.n_tokens())) {
+@@ -3669,8 +3734,48 @@ private:
+ 
+                     // note: we create the checkpoint before calling llama_decode(), so the current batch is not
+                     //       yet processed and therefore it is not part of the checkpoint.
++                    const size_t autojev_checkpoint_limit =
++                        (slot.task->autojev_cache_mode == "context" ? 512ULL : 256ULL) * 1024 * 1024;
++                    if (autojev_boundary > 0) {
++                        do_checkpoint = params_base.n_ctx_checkpoints > 0 && is_autojev_boundary(n_tokens_start) && pos_min >= 0 && !has_mtmd;
++                        for (const auto & checkpoint : slot.prompt.checkpoints) {
++                            if (checkpoint.n_tokens == n_tokens_start) do_checkpoint = false;
++                        }
++                        if (do_checkpoint) {
++                            for (auto it = slot.prompt.checkpoints.begin(); it != slot.prompt.checkpoints.end();) {
++                                if (slot.task->autojev_cache_mode != "context" || !is_autojev_boundary(it->n_tokens)) {
++                                    it = slot.prompt.checkpoints.erase(it);
++                                } else {
++                                    ++it;
++                                }
++                            }
++                            size_t bytes = llama_state_seq_get_size_ext(ctx_tgt, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++                            if (ctx_dft) bytes += llama_state_seq_get_size_ext(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++                            size_t retained = 0;
++                            for (auto it = slot.prompt.checkpoints.rbegin(); it != slot.prompt.checkpoints.rend() &&
++                                    retained < size_t(params_base.n_ctx_checkpoints - 1); ++it, ++retained) {
++                                bytes += it->size();
++                            }
++                            do_checkpoint = bytes <= autojev_checkpoint_limit;
++                        }
++                    }
+                     if (do_checkpoint) {
+-                        create_checkpoint(slot, n_tokens_cur, pos_min, pos_max);
++                        try {
++                            create_checkpoint(slot, n_tokens_cur, pos_min, pos_max);
++                        } catch (...) {
++                            if (autojev_boundary > 0) slot.prompt_clear();
++                            throw;
++                        }
++                        if (autojev_boundary > 0) {
++                            size_t bytes = 0;
++                            for (const auto & checkpoint : slot.prompt.checkpoints) bytes += checkpoint.size();
++                            if (bytes > autojev_checkpoint_limit) {
++                                slot.prompt.checkpoints.pop_back();
++                                SLT_WRN(slot, "AutoJev prefix checkpoints exceeded %zu MiB; skipped\n", autojev_checkpoint_limit / (1024 * 1024));
++                            } else {
++                                slot.autojev_cache_write_tokens += int32_t(n_tokens_start);
++                            }
++                        }
+                     }
+                 }
+ 
+@@ -5264,7 +5369,7 @@ void server_routes::init_routes() {
+     };
+     this->post_systemone = [this](const server_http_req & req) {
+         auto res = create_response();
+-        auto reject = [&](const std::string & message, error_type type = ERROR_TYPE_INVALID_REQUEST) {
++        auto reject = [&](const std::string & message, error_type type = ::ERROR_TYPE_INVALID_REQUEST) {
+             res->error(format_error_response(message, type));
+             return std::move(res);
+         };
+@@ -5311,6 +5416,46 @@ void server_routes::init_routes() {
+             return reject("At most four images may be supplied");
+         }
+ 
++        bool options_first_requested = autojev_env_enabled("AUTOJEV_OPTIONS_FIRST");
++        bool prefix_cache_requested = autojev_env_enabled("AUTOJEV_PREFIX_CACHE");
++        const char * env_mode = std::getenv("AUTOJEV_CACHE_MODE");
++        std::string cache_mode = env_mode ? env_mode : "";
++        std::string legacy_override;
++        bool legacy_header = false, legacy_conflict = false;
++        bool header_mode = false;
++        for (const auto & header : req.headers) {
++            std::string name = header.first;
++            std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return char(std::tolower(c)); });
++            if (name == "x-autojev-cache-mode") {
++                if (header_mode && cache_mode != header.second) return reject("Conflicting cache mode overrides");
++                cache_mode = header.second;
++                header_mode = true;
++            } else if (name == "x-autojev-prefix-cache") {
++                legacy_conflict = legacy_conflict || (legacy_header && legacy_override != header.second);
++                legacy_override = header.second;
++                legacy_header = true;
++            }
++        }
++        // Request overrides take precedence over environment defaults.
++        if (!header_mode && legacy_header) {
++            if (legacy_conflict) return reject("Conflicting prefix cache overrides");
++            if (legacy_override != "1" && legacy_override != "0" &&
++                    legacy_override != "true" && legacy_override != "false") return reject("Invalid prefix cache override");
++            cache_mode = legacy_override == "1" || legacy_override == "true" ? "options" : "none";
++        }
++        if (header_mode || legacy_header || env_mode != nullptr) {
++            if (cache_mode != "none" && cache_mode != "options" && cache_mode != "context") {
++                return reject("Invalid cache mode; expected none, options, or context");
++            }
++            options_first_requested = cache_mode == "options";
++            prefix_cache_requested = cache_mode != "none";
++        } else {
++            cache_mode = options_first_requested && prefix_cache_requested ? "options" : "none";
++        }
++        // Partial checkpoints cannot recover evicted sliding-window attention KV.
++        const bool unsafe_context_memory = cache_mode == "context" && !params.swa_full && llama_model_n_swa(ctx_server.model_tgt) > 0;
++        const std::string applied_cache_mode = images.empty() && !unsafe_context_memory ? cache_mode : "none";
++
+         std::vector<autojev::option_set> option_sets;
+         option_sets.reserve(body["questions"].size());
+         for (auto it = body["questions"].begin(); it != body["questions"].end(); ++it) {
+@@ -5452,8 +5597,16 @@ void server_routes::init_routes() {
+             }
+             size_t question_index = 0;
+             for (auto it = body["questions"].begin(); it != body["questions"].end(); ++it, ++question_index) {
+-                const std::string user_prompt = autojev::build_user_prompt(
++                const bool options_first = files.empty() && options_first_requested;
++                const bool context_first = applied_cache_mode == "context";
++                const std::string prefix = options_first
++                    ? autojev::build_options_prefix(it.value(), codes, option_sets[question_index])
++                    : context_first ? autojev::build_context_prefix(body["state"], it.value()) : "";
++                std::string user_prompt = autojev::build_user_prompt(
+                     body["state"], it.value(), codes, option_sets[question_index], files.size(), get_media_marker());
++                if (options_first) {
++                    user_prompt = prefix + autojev::describe_state(body["state"]) + "\n\nReturn only the letter code of the best option.";
++                }
+                 common_chat_msg system;
+                 system.role = "system";
+                 system.content = autojev::system_prompt;
+@@ -5470,8 +5623,24 @@ void server_routes::init_routes() {
+                 task.id = rd.get_new_id();
+                 task.index = question_index;
+                 task.capture_classifier_logits = true;
++                task.autojev_cache_mode = applied_cache_mode;
++                task.params.cache_prompt = false;
+                 if (bitmaps.entries.empty()) {
+                     task.tokens = server_tokens(tokenize_mixed(ctx_server.vocab, rendered.prompt, true, true), false);
++                    task.params.cache_prompt = (options_first || context_first) && prefix_cache_requested;
++                    if (task.params.cache_prompt) {
++                        const size_t start = rendered.prompt.rfind(user_prompt);
++                        if (start == std::string::npos) throw std::runtime_error("Cannot locate AutoJev user prompt");
++                        auto safe_boundary = [&](size_t length) {
++                            const auto prefix_tokens = tokenize_mixed(ctx_server.vocab, rendered.prompt.substr(0, start + length), true, true);
++                            size_t count = 0;
++                            while (count < prefix_tokens.size() && count < task.tokens.size() && prefix_tokens[count] == task.tokens[count]) ++count;
++                            return int32_t(std::min(count, task.tokens.size() - 1));
++                        };
++                        task.autojev_prefix_tokens = safe_boundary(prefix.size());
++                        if (context_first) task.autojev_state_tokens = safe_boundary(autojev::build_state_prefix(body["state"]).size());
++                        task.params.cache_prompt = task.autojev_prefix_tokens > 0;
++                    }
+                 } else {
+                     mtmd_input_text input_text = {
+                         rendered.prompt.data(),
+@@ -5495,6 +5664,21 @@ void server_routes::init_routes() {
+             return reject(std::string("Failed to format AutoJev input: ") + e.what());
+         }
+ 
++        // All heads use the same exact pre-option token prefix, even when their questions differ.
++        if (applied_cache_mode == "context" && !tasks.empty()) {
++            int32_t common = tasks.front().autojev_prefix_tokens;
++            for (const auto & task : tasks) {
++                common = std::min(common, task.autojev_prefix_tokens);
++                int32_t count = 0;
++                while (count < common && tasks.front().tokens[count] == task.tokens[count]) ++count;
++                common = count;
++            }
++            for (auto & task : tasks) {
++                task.autojev_prefix_tokens = common;
++                task.autojev_state_tokens = std::min(task.autojev_state_tokens, common);
++                task.params.cache_prompt = common > 0;
++            }
++        }
+         rd.post_tasks(std::move(tasks));
+         const auto all_results = rd.wait_for_all(req.should_stop);
+         if (all_results.is_terminated) {
+@@ -5506,7 +5690,7 @@ void server_routes::init_routes() {
+         }
+ 
+         autojev::json answers = autojev::json::object();
+-        size_t input_tokens = 0;
++        size_t input_tokens = 0, cached_tokens = 0, cache_write_tokens = 0, checkpoint_bytes = 0;
+         for (const auto & result : all_results.results) {
+             const auto * rerank = dynamic_cast<const server_task_result_rerank *>(result.get());
+             if (rerank == nullptr || rerank->index >= question_data.size()) {
+@@ -5516,6 +5700,9 @@ void server_routes::init_routes() {
+             const auto probs = autojev::probabilities(rerank->classifier_logits, question.options.keys.size(), temperature);
+             answers[question.id] = autojev::make_answer(*question.question, question.options, probs);
+             input_tokens += static_cast<size_t>(rerank->n_tokens);
++            cached_tokens += rerank->cached_tokens;
++            cache_write_tokens += rerank->cache_write_tokens;
++            checkpoint_bytes = std::max(checkpoint_bytes, rerank->checkpoint_bytes);
+         }
+ 
+         autojev::json response;
+@@ -5525,6 +5712,10 @@ void server_routes::init_routes() {
+             {"input_tokens", input_tokens},
+             {"output_tokens", 0},
+         };
++        res->headers["X-AutoJev-Cache-Mode"] = applied_cache_mode;
++        res->headers["X-AutoJev-Cached-Tokens"] = std::to_string(cached_tokens);
++        res->headers["X-AutoJev-Cache-Write-Tokens"] = std::to_string(cache_write_tokens);
++        res->headers["X-AutoJev-Checkpoint-Bytes"] = std::to_string(checkpoint_bytes);
+         res->ok(json::parse(response.dump()));
+         return res;
+     };
+diff --git a/tools/server/server-queue.cpp b/tools/server/server-queue.cpp
+index 78169e9..f05dd64 100644
+--- a/tools/server/server-queue.cpp
++++ b/tools/server/server-queue.cpp
+@@ -357,7 +357,8 @@ void server_queue::start_loop(int64_t idle_sleep_ms) {
+                 if (res) {
+                     break; // new task arrived or terminate
+                 }
+-                // otherwise, loop again to check sleeping condition
++                // Give the inference thread an idle maintenance tick.
++                break;
+             }
+         }
+     }
+diff --git a/tools/server/server-task.h b/tools/server/server-task.h
+index b80f4ad..f42d361 100644
+--- a/tools/server/server-task.h
++++ b/tools/server/server-task.h
+@@ -152,6 +152,9 @@ struct server_task {
+     // used by SERVER_TASK_TYPE_INFERENCE
+     task_params   params;
+     server_tokens tokens;
++    int32_t autojev_prefix_tokens = 0;
++    int32_t autojev_state_tokens = 0;
++    std::string autojev_cache_mode;
+     bool capture_classifier_logits = false; // used by AutoJev through SERVER_TASK_TYPE_RERANK
+ 
+     // only used by CLI, this allow tokenizing CLI inputs on server side
+@@ -468,6 +471,9 @@ struct server_task_result_embd : server_task_result {
+ };
+ 
+ struct server_task_result_rerank : server_task_result {
++    int32_t cached_tokens = 0;
++    int32_t cache_write_tokens = 0;
++    size_t checkpoint_bytes = 0;
+     float score = -1e6;
+     std::vector<float> classifier_logits;
+ 
+@@ -569,10 +575,12 @@ struct server_prompt {
+     server_tokens tokens;
+ 
+     std::list<common_prompt_checkpoint> checkpoints;
++    std::string autojev_cache_mode;
+ 
+     void clear() {
+         tokens.clear();
+         checkpoints.clear();
++        autojev_cache_mode.clear();
+     }
+ 
+     int n_tokens() const {
+@@ -583,6 +591,7 @@ struct server_prompt {
+         return server_prompt {
+             tokens.clone(),
+             checkpoints,
++            autojev_cache_mode,
+         };
+     }
+ };
