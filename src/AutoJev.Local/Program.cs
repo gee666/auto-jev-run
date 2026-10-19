@@ -285,7 +285,7 @@ internal static class Program
         }
         app.MapGet("/local/status", () => Results.Json(View()));
         foreach (var path in new[] { "/health", "/v1/health" }) app.MapGet(path, (HttpContext ctx) =>
-            Results.Json(BrowserOriginPolicy.IsLocalControl(ctx) ? View() : new { service = ServiceId, status = backend.State }, statusCode: backend.State == "failed" ? 503 : 200));
+            Results.Json(BrowserOriginPolicy.IsLocalControl(ctx) ? View() : new { service = ServiceId, status = backend.State, model = "autojev-27b-q4_k_m", contextTokens = cfg.ContextTokens, mode = cfg.Mode }, statusCode: backend.State == "failed" ? 503 : 200));
         app.MapGet("/v1/models", () => Results.Json(new { models = new[] { "autojev", "autojev-27b-q4_k_m", "jev-latest", "jev-preview", "jev-1.13.0" }.Select(name => new { name, release_date = "2026-09-26", description = "Local AutoJev-27B Q4_K_M. Jev names are compatibility aliases, not the hosted Jev model." }) }));
         app.MapGet("/usage", () => Results.Content(File.ReadAllText(Path.Combine(root, "app", "usage.html")), "text/html"));
         app.MapGet("/docs", () => Results.Content(File.ReadAllText(Path.Combine(root, "app", "api.md")), "text/markdown; charset=utf-8"));
