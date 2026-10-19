@@ -8,5 +8,6 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Compile Include="../../src/AutoJev.Local/BrowserOriginPolicy.cs" Link="BrowserOriginPolicy.cs" />
+    <Compile Include="../../src/AutoJev.Local/LanDashboardAuth.cs" Link="LanDashboardAuth.cs" />
   </ItemGroup>
 </Project>

@@ -244,8 +244,10 @@ internal static class Program
         using var usage = new UsageStore(root);
         using var backend = new Backend(root, cfg);
         var bridge = new Bridge(backend, cfg, app.Lifetime.ApplicationStopping);
+        var dashboardPasswordHash = LanDashboardAuth.LoadPasswordHash();
         app.Use(async (ctx, next) =>
         {
+            if (!LanDashboardAuth.Apply(ctx, dashboardPasswordHash)) return;
             if (!BrowserOriginPolicy.Apply(ctx, cfg.EffectiveAllowedOrigins, cfg.ListenHost)) return;
             ctx.Response.Headers["X-TypeSafe-Request-Id"] = Guid.NewGuid().ToString("N");
             ctx.Response.Headers["X-AutoJev-Provider"] = "local-autojev-27b-q4_k_m";

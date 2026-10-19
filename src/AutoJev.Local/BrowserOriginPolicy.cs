@@ -28,7 +28,8 @@ internal static class BrowserOriginPolicy
 
     // Never trust Host or forwarded headers alone for unauthenticated management routes.
     public static bool IsLocalControl(HttpContext ctx) =>
-        ctx.Connection.RemoteIpAddress is { } peer && IPAddress.IsLoopback(Normalize(peer)) && LoopbackHost(ctx.Request.Host.Host);
+        LanDashboardAuth.IsAuthenticated(ctx) ||
+        (ctx.Connection.RemoteIpAddress is { } peer && IPAddress.IsLoopback(Normalize(peer)) && LoopbackHost(ctx.Request.Host.Host));
 
     private static bool ValidHost(HttpContext ctx, string? listenHost)
     {

@@ -16,9 +16,17 @@ The build pins jev.cpp to `aa885f0a86efe36079d70b522f927cd2fc38683b` and applies
 
 Copy weights separately into `models/autojev-27b/`. Copy the SQLite database using SQLite's backup API, not a raw copy while its source is running. Keep private data out of Git. App keys are stored as hashes in the database. Existing client key strings remain valid; the internal dashboard key and process control tokens regenerate on startup.
 
-## Connect
+## Direct LAN access
 
-The service listens only on loopback. From your computer:
+The Spark installation supports direct access at `http://192.168.0.105:8765/`, without an SSH tunnel. Dashboard username is `admin`. The generated password is stored privately in `.local/lan-dashboard-password.txt` on the server and the source computer. Passwords are not committed to Git.
+
+The service reads optional `.local/server.env`. To enable this on another installation, set `AUTOJEV_HOST=0.0.0.0` and `AUTOJEV_DASHBOARD_PASSWORD_FILE=/absolute/path/to/private-password-file` there, then restart the service. Use a random password of at least 16 characters and owner-only file permissions. Binding all interfaces lets the service start before Wi-Fi connects and continue after network-address changes. The URL may change if DHCP assigns a new IP; reserve the device address in your router.
+
+Dashboard and management routes require browser Basic authentication from private-network addresses. App inference requests retain their existing API keys and do not need the dashboard password. Cross-origin administration remains blocked. HTTP does not encrypt credentials or traffic; use this only on a trusted LAN, and do not forward the port to the internet. Use a TLS reverse proxy for untrusted networks.
+
+## Optional SSH access
+
+Without the optional LAN configuration, the service listens only on loopback. From your computer:
 
 ```sh
 ssh -N -L 8765:127.0.0.1:8765 oira666@spark-3ecb.local
@@ -26,7 +34,7 @@ ssh -N -L 8765:127.0.0.1:8765 oira666@spark-3ecb.local
 
 Open `http://localhost:8765` for the playground and `http://localhost:8765/usage` for keys and usage. If a local instance already uses 8765, use `-L 18765:127.0.0.1:8765` and open port 18765 instead. Use SSH keepalives such as `-o ServerAliveInterval=30 -o ServerAliveCountMax=3`, and reconnect the tunnel after a network outage. The server itself does not depend on the tunnel or GitHub after installation.
 
-Do not publish the dashboard directly to the internet. It intentionally permits local key administration. `AUTOJEV_HOST` can explicitly expose authenticated inference on a LAN, but dashboard/control routes still require loopback. HTTP is unencrypted; use SSH or a properly configured TLS proxy.
+Do not publish the dashboard directly to the internet. Without a configured dashboard password, non-loopback clients can access only authenticated inference and minimal metadata.
 
 ## Operations
 

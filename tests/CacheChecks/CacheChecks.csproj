@@ -10,5 +10,6 @@
     <Compile Include="../../src/AutoJev.Local/CacheModePolicy.cs" Link="CacheModePolicy.cs" />
     <Compile Include="../../src/AutoJev.Local/Settings.cs" Link="Settings.cs" />
     <Compile Include="../../src/AutoJev.Local/BrowserOriginPolicy.cs" Link="BrowserOriginPolicy.cs" />
+    <Compile Include="../../src/AutoJev.Local/LanDashboardAuth.cs" Link="LanDashboardAuth.cs" />
   </ItemGroup>
 </Project>

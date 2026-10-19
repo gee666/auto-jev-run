@@ -20,6 +20,7 @@ TimeoutStopSec=45
 KillMode=control-group
 UMask=0077
 Environment=AUTOJEV_HOST=127.0.0.1
+EnvironmentFile=-$ROOT/.local/server.env
 Environment=DOTNET_CLI_TELEMETRY_OPTOUT=1
 Environment=PATH=$HOME/.dotnet:/usr/local/cuda/bin:/usr/bin:/bin
 Environment=LD_LIBRARY_PATH=$ROOT/runtime/linux-cuda:/usr/local/cuda/lib64
