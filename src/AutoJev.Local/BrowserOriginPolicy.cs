@@ -26,7 +26,7 @@ internal static class BrowserOriginPolicy
 
     private static IPAddress Normalize(IPAddress address) => address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
 
-    // Never trust Host or forwarded headers alone for unauthenticated management routes.
+    // Host/forwarded headers alone never grant management access. LAN access requires a verified login.
     public static bool IsLocalControl(HttpContext ctx) =>
         LanDashboardAuth.IsAuthenticated(ctx) ||
         (ctx.Connection.RemoteIpAddress is { } peer && IPAddress.IsLoopback(Normalize(peer)) && LoopbackHost(ctx.Request.Host.Host));
@@ -52,7 +52,7 @@ internal static class BrowserOriginPolicy
             "/v1/models" or "/health" or "/v1/health" => "GET",
             _ => null,
         };
-        // LAN exposes only inference and minimal metadata, even with a forged loopback Host.
+        // Without a verified dashboard login, LAN exposes only inference and minimal metadata.
         // This also protects all future routes unless they are explicitly added above.
         if (!IsLocalControl(ctx) && method is null) return Reject(ctx, 403);
         var origin = ctx.Request.Headers.Origin.ToString();

@@ -12,7 +12,8 @@ Validated on 2026-10-19 in `/home/oira666/workshop/my-jev`.
 - `autojev.service` is enabled, uses `Restart=always` and `KillMode=control-group`. User lingering is enabled, allowing startup without an interactive login.
 - Daily private SQLite backup timer is enabled and an integrity-checked backup completed successfully.
 - The source Windows instance was stopped and its sign-in startup disabled to avoid writing to two separate databases after migration.
-- The service binds only to loopback and does not need external network services after installation. Clients need an SSH tunnel or a separately secured proxy. Failed or disconnected requests must be retried; they are not a durable queue.
+- Initially validated on loopback. Direct LAN access was subsequently enabled at `http://192.168.0.105:8765/` with a password-protected dashboard. Live tests from the Windows computer passed for dashboard login, usage, direct inference and cross-origin rejection, without an SSH tunnel. LAN authentication unit checks: 51 passed. The private service environment file persists this binding across restarts.
+- The service does not need external network services after installation. Failed or disconnected requests must be retried; they are not a durable queue.
 
 A full device reboot was not tested because login1 requires administrator authentication. Boot startup configuration was verified, but an administrator should perform a reboot and check `systemctl --user status autojev` afterwards.
 

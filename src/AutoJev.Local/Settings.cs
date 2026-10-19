@@ -2,7 +2,7 @@ namespace AutoJev.Local;
 
 internal sealed class Settings
 {
-    // Literal IP address or localhost. Keep controls on loopback and use an SSH tunnel.
+    // Literal IP address or localhost. LAN dashboard access separately requires a configured password.
     [System.Text.Json.Serialization.JsonIgnore]
     public string ListenHost => Environment.GetEnvironmentVariable("AUTOJEV_HOST")?.Trim() is { Length: > 0 } host ? host : "localhost";
     public int Port { get; set; } = 8765;
