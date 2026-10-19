@@ -1,5 +1,7 @@
 # AutoJev Local
 
+For NVIDIA DGX Spark and other Linux servers, see [Linux deployment](docs/linux-deployment.md). Weights, databases, private reports and temporary files are not published in this repository.
+
 A local, general-purpose decision server using AutoJev-27B Q4_K_M. It runs natively on Windows. The launcher, inference binaries, runtime libraries, source code, model, and research reports are all in this folder.
 
 See the [consolidated report of all tested models](reports/all-tested-models.md) for Bash scores, architectures, weight sizes, hardware evidence, startup times, and response times by context length.

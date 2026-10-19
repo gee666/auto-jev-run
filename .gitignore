@@ -20,3 +20,4 @@ reports/
 *.pem
 backups/
 .local/
+config/logrotate-linux.conf

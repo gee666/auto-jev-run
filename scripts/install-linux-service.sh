@@ -29,8 +29,41 @@ LimitCORE=0
 [Install]
 WantedBy=default.target
 EOF
+cat > "$ROOT/config/logrotate-linux.conf" <<EOF
+$ROOT/logs/*.log {
+    daily
+    maxsize 20M
+    rotate 7
+    compress
+    missingok
+    notifempty
+    copytruncate
+    su $USER $(id -gn)
+}
+EOF
+cat > "$HOME/.config/systemd/user/autojev-maintenance.service" <<EOF
+[Unit]
+Description=AutoJev private database backup and log rotation
+[Service]
+Type=oneshot
+WorkingDirectory=$ROOT
+ExecStart=/usr/bin/python3 $ROOT/scripts/backup-linux.py
+ExecStart=/usr/sbin/logrotate --state $ROOT/state/logrotate.state $ROOT/config/logrotate-linux.conf
+UMask=0077
+NoNewPrivileges=true
+EOF
+cat > "$HOME/.config/systemd/user/autojev-maintenance.timer" <<EOF
+[Unit]
+Description=Daily AutoJev maintenance
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=10m
+[Install]
+WantedBy=timers.target
+EOF
 systemctl --user daemon-reload
-systemctl --user enable --now autojev.service
+systemctl --user enable --now autojev.service autojev-maintenance.timer
 if [[ $(loginctl show-user "$USER" -p Linger --value) != yes ]]; then
   echo 'WARNING: run loginctl enable-linger to start without an interactive login.' >&2
   exit 1

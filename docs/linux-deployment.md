@@ -7,6 +7,7 @@ The Linux build runs without a tray. The Windows launcher is unchanged.
 Install the .NET 8 SDK for Linux ARM64 into `~/.dotnet`, CMake, a C++ compiler, and CUDA 13. CUDA must support architecture 121 for GB10. Then run:
 
 ```sh
+bash scripts/install-media-linux.sh
 bash scripts/build-linux.sh
 bash scripts/install-linux-service.sh
 ```
@@ -38,6 +39,6 @@ curl --fail http://127.0.0.1:8765/health
 
 `loginctl show-user "$USER" -p Linger` must show `yes` for startup before login. The installer checks this. Systemd restarts the service after crashes and kills all inference children when stopping it. SQLite uses WAL with FULL synchronous durability. In-flight requests do not survive disconnects, process crashes, or reboot; clients must retry. Keys and recorded usage persist. Hardware failure and disk loss require separate off-device backups.
 
-Launcher/inference logs are in `logs/`. Configure log rotation for long-running installations. Back up `data/usage.sqlite` with Python's sqlite3 backup API before upgrades. Keep backups private and outside Git.
+Launcher/inference logs are in `logs/`. The installed daily maintenance timer creates integrity-checked SQLite backups under `backups/`, retaining seven daily snapshots, and rotates logs with logrotate. Install `/usr/sbin/logrotate` before running the service installer. Check `systemctl --user status autojev-maintenance.timer`. These backups are on the same disk, so keep a separate off-device backup too.
 
 After pulling updates, stop the service before publishing into `app/`, run the build script, then restart. Do not overwrite `data/`, `state/` or model files during code updates.

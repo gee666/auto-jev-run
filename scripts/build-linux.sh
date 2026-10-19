@@ -10,6 +10,8 @@ if [[ ! -d repos/jev.cpp/.git ]]; then
   git -C repos/jev.cpp checkout aa885f0a86efe36079d70b522f927cd2fc38683b
   git -C repos/jev.cpp apply "$ROOT/patches/autojev-backend.patch"
 fi
+[[ $(git -C repos/jev.cpp rev-parse HEAD) == aa885f0a86efe36079d70b522f927cd2fc38683b ]] || { echo 'Unexpected backend commit' >&2; exit 1; }
+git -C repos/jev.cpp apply --reverse --check "$ROOT/patches/autojev-backend.patch"
 # GB10 uses SM 12.1. Override for other GPUs.
 cmake -S repos/jev.cpp -B .build/jev-cuda \
   -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON \
